@@ -145,7 +145,7 @@ def main(rank, config:DefaultConfig, args):
     print(f"len tr_dataloder dataset for rank {rank}: {len(tr_dataloader) * config.batch_size // len(config.gpus)}")
     tr_dataloader = infiniteloop(tr_dataloader, epoch = (start_step * config.batch_size) / len(tr_dataset)+ 1)
     if rank == 0:
-        pbar = trange(start_step, config.total_steps)
+        pbar = trange(start_step, config.total_steps, dynamic_ncols=True)
     else:
         pbar = range(start_step, config.total_steps)
     
@@ -162,6 +162,7 @@ def main(rank, config:DefaultConfig, args):
         )
         optim.step()
         sched.step()
+        optim.zero_grad()
         if rank == 0:
             ema(net_model, ema_model, config.ema_decay)
             writer.add_scalar('loss', loss, step)
