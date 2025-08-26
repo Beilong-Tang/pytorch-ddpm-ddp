@@ -1,37 +1,36 @@
 # 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 
 @dataclass
 class DefaultConfig:
     # Unet
-    ch = 128
-    ch_mult = [1,2,2,2]
-    attn=[1]
-    num_res_blocks=2
-    dropout=0.1
+    ch:int = 128
+    ch_mult:list = field(default_factory=lambda: [1, 2, 2,2])
+    attn:list  =field(default_factory=lambda: [1])
+    num_res_blocks:int =2
+    dropout: float=0.1
     # Gaussian Diffusion
-    beta_1=1.0e-4
-    beta_T=0.02
-    T=1000
-    mean_type='epsilon'
-    var_type='fixedlarge'
+    beta_1: float =1.0e-4
+    beta_T: float =0.02
+    T:float =1000
+    mean_type: str='epsilon'
+    var_type: str='fixedlarge'
     # Training
-    lr=2.0e-4
-    grad_clip=1
-    total_steps=800000
-    img_size=32
-    warmup=5000
-    batch_size=128
-    num_workers=4
-    ema_decay=0.9999
+    lr:float=2.0e-4
+    grad_clip:int=1
+    total_steps:int=800000
+    img_size:int=32
+    warmup:int=5000
+    batch_size:int=128
+    num_workers:int=4
+    ema_decay:float=0.9999
     # Logging & Sampling
-    logdir="./logs/DDPM_CIFAR10_EPS"
-    img_size=32
-    sample_size=64
-    save_step=5000
-    sample_step=2500
-    # GPUs
-    gpus=["cuda:0", "cuda:1", "cuda:2", "cuda:3", "cuda:4", "cuda:5", "cuda:6", "cuda:7"]
+    logdir:str="./logs/DDPM_CIFAR10_EPS"
+    img_size:int=32
+    sample_size:int=64
+    save_step:int=5000
+    sample_step:int=2500
     # Paired noise traing
-    noise_scp=None
-    img_scp=None
+    noise_scp:Optional[str]=None
+    img_scp:Optional[str]=None

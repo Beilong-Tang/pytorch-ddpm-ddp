@@ -9,7 +9,7 @@ import copy
 import os.path as op
 from pathlib import Path
 from tqdm import trange
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 
 import torch 
 import torch.multiprocessing as mp
@@ -62,7 +62,7 @@ def seed_worker(worker_id):
 
 def load_config(module_path: str, class_name: str ="Config", **kwargs):
     module = importlib.import_module(module_path)
-    return getattr(module, class_name)
+    return getattr(module, class_name)()
 
 def infiniteloop(dataloader, epoch=0):
     epoch = epoch
@@ -78,9 +78,9 @@ def warmup_lr(step, warmup):
 
 def main(rank, config:DefaultConfig, args):
     ## DDP
-    print(f"INFO: [rank[{rank}] | {len(config.gpus)}] inited...")
-    setup(rank, len(config.gpus), args.dist_backend, args.port)
-    device = config.gpus[rank] 
+    print(f"INFO: [rank[{rank}] | {len(args.gpus.split(','))}] inited...")
+    setup(rank, len(args.gpus.split(',')), args.dist_backend, args.port)
+    device = f"cuda:{rank}"
     torch.cuda.set_device(device)
     setup_seed(args.seed, rank)
 
@@ -94,17 +94,18 @@ def main(rank, config:DefaultConfig, args):
     trainer = GaussianDiffusionTrainer(
         net_model, config.beta_1, config.beta_T, config.T).cuda()
     trainer = DDP(trainer, device_ids=[rank])
-
     ema_sampler = GaussianDiffusionSampler(
         ema_model, config.beta_1, config.beta_T, config.T, config.img_size,
         config.mean_type, config.var_type).to(device)
     
     # Log and Resume setup
     start_step = 0
-    if os.path.exists(config.logdir):
+
+    if os.path.exists(op.join(config.logdir, 'ckpt.pt')):
         if args.resume:
             ckpt = str(Path(config.logdir) / "ckpt.pt")
-            if os.path.exist(ckpt):
+            print(f"resuming from {ckpt}")
+            if os.path.exists(ckpt):
                 ckpt = torch.load(ckpt, map_location='cpu')
                 ema_model.load_state_dict(ckpt['ema_model'])
                 net_model.load_state_dict(ckpt['net_model'])
@@ -114,7 +115,7 @@ def main(rank, config:DefaultConfig, args):
         else:
             raise Exception(f"WARNING: {config.logdir} exist. Aborting it now!")
     else:
-        os.makedirs(op.join(config.logdir, 'sample'))
+        os.makedirs(op.join(config.logdir, 'sample'), exist_ok=True)
     logger = setup_logger(op.join(config.logdir, "logging"), rank)
     
     if rank == 0:
@@ -132,12 +133,12 @@ def main(rank, config:DefaultConfig, args):
     if rank !=0:
         tr_dataset = get_cifar_dataset(noise_scp=config.noise_scp, img_scp=config.img_scp)
     tr_dataloader = torch.utils.data.DataLoader(
-        tr_dataset, batch_size=config.batch_size // len(config.gpus), 
+        tr_dataset, batch_size=config.batch_size // len(args.gpus.split(',')), 
         shuffle=False,
         num_workers=config.num_workers,  
         worker_init_fn = seed_worker,
         sampler=DistributedSampler(tr_dataset))
-    logger.info(f"len tr_dataloder dataset for rank {rank}: {len(tr_dataloader) * config.batch_size // len(config.gpus)}")
+    logger.info(f"len tr_dataloder dataset for rank {rank}: {len(tr_dataloader) * config.batch_size // len(args.gpus.split(','))}")
     tr_dataloader = infiniteloop(tr_dataloader, epoch = (start_step * config.batch_size) / len(tr_dataset)+ 1)
     if rank == 0:
         pbar = trange(start_step, config.total_steps, dynamic_ncols=True)
@@ -145,7 +146,7 @@ def main(rank, config:DefaultConfig, args):
         pbar = range(start_step, config.total_steps)
     
     dist.barrier()
-    logger.info(f"rank[{rank}]/ {len(config.gpus)} started training", all=True)
+    logger.info(f"rank[{rank}]/ {len(args.gpus.split(','))} started training", all=True)
     
     for step in pbar:
         x_0 = next(tr_dataloader)
@@ -198,15 +199,17 @@ if __name__ == "__main__":
     p.add_argument('--config_path', help="config path")
     p.add_argument("--port", default=12355, type =int, help="ddp port")
     p.add_argument("--dist-backend", default='nccl', type =str, help="ddp backend")
-    p.add_argument("--resume", default=False, type =bool, help="whether to resume from last training")
+    p.add_argument("--resume", action='store_true', help="whether to resume from last training")
+    p.add_argument("--gpus", default='0,1,2,3')
     p.add_argument("--seed", default=1234)
     args = p.parse_args()
     args.config_path = os.path.relpath(args.config_path.replace("/", "."), os.getcwd())
     config: DefaultConfig = load_config(args.config_path)
     print(config)
-    if isinstance(config.gpus, list) and len(config.gpus) > 1:
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
+    if len(args.gpus.split(",")) > 1:
         print("running DDP")
-        mp.spawn(main, args=(config, args), nprocs=len(config.gpus), join=True)
+        mp.spawn(main, args=(config, args), nprocs=len(args.gpus.split(",")), join=True)
         print("Done")
         cleanup()
     else:

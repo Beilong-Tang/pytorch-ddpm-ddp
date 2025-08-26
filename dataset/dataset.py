@@ -16,6 +16,7 @@ def get_cifar_dataset(noise_scp, img_scp):
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]))
     else:
+        print("using random noise pair dataset")
         return ImageNoisePairDataset(img_scp, noise_scp)
 
 
