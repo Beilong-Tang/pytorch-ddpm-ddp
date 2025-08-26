@@ -115,6 +115,7 @@ def main(rank, config:DefaultConfig, args):
             raise Exception(f"WARNING: {config.logdir} exist. Aborting it now!")
     else:
         os.makedirs(op.join(config.logdir, 'sample'))
+    logger = setup_logger(op.join(config.logdir, "logging"), rank)
     
     if rank == 0:
         writer = SummaryWriter(config.logdir)
@@ -148,7 +149,7 @@ def main(rank, config:DefaultConfig, args):
         num_workers=config.num_workers,  
         worker_init_fn = seed_worker,
         sampler=DistributedSampler(tr_dataset))
-    print(f"len tr_dataloder dataset for rank {rank}: {len(tr_dataloader) * config.batch_size // len(config.gpus)}")
+    logger.info(f"len tr_dataloder dataset for rank {rank}: {len(tr_dataloader) * config.batch_size // len(config.gpus)}")
     tr_dataloader = infiniteloop(tr_dataloader, epoch = (start_step * config.batch_size) / len(tr_dataset)+ 1)
     if rank == 0:
         pbar = trange(start_step, config.total_steps, dynamic_ncols=True)
@@ -156,7 +157,7 @@ def main(rank, config:DefaultConfig, args):
         pbar = range(start_step, config.total_steps)
     
     dist.barrier()
-    print(f"rank[{rank}]/ {len(config.gpus)} started training")
+    logger.info(f"rank[{rank}]/ {len(config.gpus)} started training", all=True)
     
     for step in pbar:
         x_0 = next(tr_dataloader)
@@ -201,7 +202,7 @@ def main(rank, config:DefaultConfig, args):
                 }
                 torch.save(ckpt, os.path.join(config.logdir, 'ckpt.pt'))
             dist.barrier()
-    print("Done..")
+    logger.info("Done..")
 
     
 if __name__ == "__main__":
