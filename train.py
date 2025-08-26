@@ -109,7 +109,7 @@ def main(rank, config:DefaultConfig, args):
                 optim.load_state_dict(ckpt['optim'])
                 start_step = ckpt['step']
         else:
-            print(f"WARNING: {config.logdir} exist. Overwriting it now!")
+            raise Exception(f"WARNING: {config.logdir} exist. Aborting it now!")
     else:
         os.makedirs(op.join(config.logdir, 'sample'))
     
@@ -208,6 +208,7 @@ if __name__ == "__main__":
     args = p.parse_args()
     args.config_path = os.path.relpath(args.config_path.replace("/", "."), os.getcwd())
     config: DefaultConfig = load_config(args.config_path)
+    print(config)
     if isinstance(config.gpus, list) and len(config.gpus) > 1:
         print("running DDP")
         mp.spawn(main, args=(config, args), nprocs=len(config.gpus), join=True)
