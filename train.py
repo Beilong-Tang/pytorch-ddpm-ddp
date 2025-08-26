@@ -76,7 +76,7 @@ def warmup_lr(step, warmup):
 def main(rank, config:DefaultConfig, args):
     ## DDP
     print(f"INFO: [rank[{rank}] | {len(config.gpus)}] inited...")
-    setup(rank, len(config.gpus), args.dist_backend)
+    setup(rank, len(config.gpus), args.dist_backend, args.port)
     device = config.gpus[rank] 
     torch.cuda.set_device(device)
     setup_seed(args.seed, rank)
