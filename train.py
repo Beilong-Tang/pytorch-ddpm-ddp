@@ -11,13 +11,6 @@ from pathlib import Path
 from tqdm import trange
 from dataclasses import asdict
 
-from config.template import DefaultConfig
-
-from diffusion import GaussianDiffusionTrainer, GaussianDiffusionSampler
-from model import UNet
-from score.both import get_inception_and_fid_score
-from utils.logger import setup_logger
-
 import torch 
 import torch.multiprocessing as mp
 import torch.distributed as dist
@@ -27,6 +20,13 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torchvision.datasets import CIFAR10
 from torchvision import transforms
 from torchvision.utils import make_grid, save_image
+
+from config.template import DefaultConfig
+from diffusion import GaussianDiffusionTrainer, GaussianDiffusionSampler
+from model import UNet
+from score.both import get_inception_and_fid_score
+from utils.logger import setup_logger
+from dataset.dataset import get_cifar_dataset
 
 def ema(source, target, decay):
     source_dict = source.state_dict()
@@ -127,22 +127,10 @@ def main(rank, config:DefaultConfig, args):
 
     # Dataset
     if rank == 0:
-        tr_dataset = CIFAR10(
-            root='./data', train=True, download=True,
-            transform=transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            ]))
+        tr_dataset = get_cifar_dataset(noise_scp=config.noise_scp, img_scp=config.img_scp)
     dist.barrier()
     if rank !=0:
-        tr_dataset = CIFAR10(
-            root='./data', train=True, download=True,
-            transform=transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            ]))
+        tr_dataset = get_cifar_dataset(noise_scp=config.noise_scp, img_scp=config.img_scp)
     tr_dataloader = torch.utils.data.DataLoader(
         tr_dataset, batch_size=config.batch_size // len(config.gpus), 
         shuffle=False,

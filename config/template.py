@@ -32,3 +32,6 @@ class DefaultConfig:
     sample_step=2500
     # GPUs
     gpus=["cuda:0", "cuda:1", "cuda:2", "cuda:3", "cuda:4", "cuda:5", "cuda:6", "cuda:7"]
+    # Paired noise traing
+    noise_scp=None
+    img_scp=None
