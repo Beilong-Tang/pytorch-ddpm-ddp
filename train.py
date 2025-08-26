@@ -1,5 +1,6 @@
 import importlib
 import argparse
+import yaml
 import os
 from functools import partial
 import random
@@ -8,12 +9,14 @@ import copy
 import os.path as op
 from pathlib import Path
 from tqdm import trange
+from dataclasses import asdict
 
 from config.template import DefaultConfig
 
 from diffusion import GaussianDiffusionTrainer, GaussianDiffusionSampler
 from model import UNet
 from score.both import get_inception_and_fid_score
+from utils.logger import setup_logger
 
 import torch 
 import torch.multiprocessing as mp
@@ -115,6 +118,9 @@ def main(rank, config:DefaultConfig, args):
     
     if rank == 0:
         writer = SummaryWriter(config.logdir)
+        # Dump the config
+        with open(op.join(config.logdir, "config.yaml"), "w") as f:
+            yaml.dump(asdict(config), f, default_flow_style=False)
         # For evaluation
         x_T = torch.randn(config.sample_size, 3, config.img_size, config.img_size).cuda()
 
