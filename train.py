@@ -42,8 +42,8 @@ def setup_seed(seed, rank):
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     torch.cuda.manual_seed_all(SEED)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = False
+    torch.backends.cudnn.benchmark = True
     return SEED
 
 ## ddp process
@@ -89,11 +89,12 @@ def main(rank, config:DefaultConfig, args):
         T=config.T, ch=config.ch, ch_mult=config.ch_mult, attn=config.attn,
         num_res_blocks=config.num_res_blocks, dropout=config.dropout)
     ema_model = copy.deepcopy(net_model)
-    optim = torch.optim.Adam(net_model.parameters(), lr=config.lr)
-    sched = torch.optim.lr_scheduler.LambdaLR(optim, lr_lambda=partial(warmup_lr, warmup=config.warmup))
     trainer = GaussianDiffusionTrainer(
         net_model, config.beta_1, config.beta_T, config.T).cuda()
     trainer = DDP(trainer, device_ids=[rank])
+    optim = torch.optim.Adam(trainer.parameters(), lr=config.lr)
+    sched = torch.optim.lr_scheduler.LambdaLR(optim, lr_lambda=partial(warmup_lr, warmup=config.warmup))
+
     ema_sampler = GaussianDiffusionSampler(
         ema_model, config.beta_1, config.beta_T, config.T, config.img_size,
         config.mean_type, config.var_type).to(device)
@@ -137,7 +138,8 @@ def main(rank, config:DefaultConfig, args):
         shuffle=False,
         num_workers=config.num_workers,  
         worker_init_fn = seed_worker,
-        sampler=DistributedSampler(tr_dataset))
+        sampler=DistributedSampler(tr_dataset),
+        pin_memory=True)
     logger.info(f"len tr_dataloder dataset for rank {rank}: {len(tr_dataloader) * config.batch_size // len(args.gpus.split(','))}")
     tr_dataloader = infiniteloop(tr_dataloader, epoch = (start_step * config.batch_size) / len(tr_dataset)+ 1)
     if rank == 0:
