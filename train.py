@@ -69,7 +69,7 @@ def infiniteloop(dataloader, epoch=0):
     while True:
         if hasattr(dataloader.sampler, "set_epoch"):
             dataloader.sampler.set_epoch(int(epoch))
-        for x, y in iter(dataloader):
+        for x in iter(dataloader):
             yield x
         epoch +=1
 
@@ -151,9 +151,13 @@ def main(rank, config:DefaultConfig, args):
     logger.info(f"rank[{rank}]/ {len(args.gpus.split(','))} started training", all=True)
     
     for step in pbar:
-        x_0 = next(tr_dataloader)
+        x_0, y_0 = next(tr_dataloader)
         x_0 = x_0.cuda()
-        loss = trainer(x_0).mean()
+        if config.img_scp and config.noise_scp is not None:
+            y_0 = y_0.cuda().float() # y_0 is noise here
+            loss = trainer(x_0, y_0).mean()
+        else:
+            loss = trainer(x_0).mean()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(
             net_model.parameters(), config.grad_clip

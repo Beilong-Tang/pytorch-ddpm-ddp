@@ -30,12 +30,13 @@ class GaussianDiffusionTrainer(nn.Module):
         self.register_buffer(
             'sqrt_one_minus_alphas_bar', torch.sqrt(1. - alphas_bar))
 
-    def forward(self, x_0):
+    def forward(self, x_0, noise=None):
         """
         Algorithm 1.
         """
         t = torch.randint(self.T, size=(x_0.shape[0], ), device=x_0.device)
-        noise = torch.randn_like(x_0)
+        if noise is None:
+            noise = torch.randn_like(x_0)
         x_t = (
             extract(self.sqrt_alphas_bar, t, x_0.shape) * x_0 +
             extract(self.sqrt_one_minus_alphas_bar, t, x_0.shape) * noise)

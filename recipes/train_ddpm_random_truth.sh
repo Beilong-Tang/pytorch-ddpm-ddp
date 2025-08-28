@@ -6,4 +6,3 @@
 python train.py --config config/cifar10_ddpm_random_truth \
     --port 12344 \
     --gpus '5,6,7' \
-    --resume
