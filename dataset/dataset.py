@@ -52,8 +52,11 @@ class ImageNoisePairDataset(Dataset):
         _img_path = self.uttid_img[_key]
         _noise_path = self.uttid_noise[_key]
         # [3, H, W]
-        img = Image.open(_img_path)
-        img = self.to_tensor(img) # [C,H,W]
+        if _img_path.endswith(".png"):
+            img = Image.open(_img_path)
+            img = self.to_tensor(img) # [C,H,W]
+        else:
+            img = torch.from_numpy(np.load(_img_path))
         img = self.transform(img)
         noise = torch.from_numpy(np.load(_noise_path)) # [C, H, W]
 

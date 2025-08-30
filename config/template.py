@@ -26,7 +26,7 @@ class DefaultConfig:
     num_workers:int=4
     ema_decay:float=0.9999
     # Logging & Sampling
-    logdir:str="./logs/DDPM_CIFAR10_EPS"
+    logdir:str=None
     img_size:int=32
     sample_size:int=64
     save_step:int=5000
@@ -34,3 +34,5 @@ class DefaultConfig:
     # Paired noise traing
     noise_scp:Optional[str]=None
     img_scp:Optional[str]=None
+    ## Rectified Pretrained ckpt
+    pretrained_ckpt:str=None

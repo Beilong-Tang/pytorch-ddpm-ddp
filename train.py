@@ -88,6 +88,13 @@ def main(rank, config:DefaultConfig, args):
     net_model = UNet(
         T=config.T, ch=config.ch, ch_mult=config.ch_mult, attn=config.attn,
         num_res_blocks=config.num_res_blocks, dropout=config.dropout)
+    # Load pretrained ckpt
+
+    if config.pretrained_ckpt is not None:
+        print(f"Loading pretrained ckpt from {config.pretrained_ckpt}")
+        ckpt=torch.load(config.pretrained_ckpt, map_location='cpu')
+        net_model.load_state_dict(ckpt['net_model'])
+    
     ema_model = copy.deepcopy(net_model)
     trainer = GaussianDiffusionTrainer(
         net_model, config.beta_1, config.beta_T, config.T).cuda()
